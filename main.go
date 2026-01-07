@@ -2,6 +2,7 @@ package socketiominiservice
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -71,6 +72,11 @@ func (s *SocketIOService[T]) Run() error {
 	}
 
 	return nil
+}
+
+// TokenValidate sets the token validation function for the Socket.IO service
+func (s *SocketIOService[T]) TokenValidate(f func(context.Context, string) (ClientInterface[T], error)) {
+	s.tokenValidateFunc = f
 }
 
 // defaultMiddleware provides default authentication and context setup for Socket.IO connections
@@ -200,9 +206,28 @@ func (s *SocketIOService[T]) onDisconnect(_ context.Context, client *socket.Sock
 	}
 }
 
-// AddEvent registers a new event handler for the Socket.IO service
-func (s *SocketIOService[T]) AddEvent(f func(context.Context) (string, func(...any))) {
-	s.socketIOEvents = append(s.socketIOEvents, f)
+func (s *SocketIOService[T]) AddEvent(ev string, handler func(context.Context, SocketIOData[T])) {
+	s.socketIOEvents = append(s.socketIOEvents,
+		func(ctx context.Context) (string, func(...any)) {
+			return ev, func(data ...any) {
+				payload, err := json.Marshal(data[0])
+				if err != nil {
+					return
+				}
+
+				client := GetClientFromContext[T](ctx)
+				if client == nil {
+					return
+				}
+
+				// Call handler
+				handler(ctx, SocketIOData[T]{
+					Payload: payload,
+					Client:  client,
+				})
+			}
+		},
+	)
 }
 
 // SendTo sends an event to a specific user by their ID

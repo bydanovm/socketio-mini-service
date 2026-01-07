@@ -50,11 +50,20 @@ func main() {
     // Create a new service
     service := socketiominiservice.NewSocketIOService[string]()
     
-    // Add event handler
-    service.AddEvent(func(ctx context.Context) (string, func(...any)) {
-        return "message", func(data ...any) {
-            // Handle message
+    // Set token validation function
+    service.TokenValidate(func(ctx context.Context, token string) (socketiominiservice.ClientInterface[string], error) {
+        // Validate token and return user info
+        // This is a simplified example
+        if token == "Bearer valid-token" {
+            return &User{ID: "user1", Name: "John Doe"}, nil
         }
+        return nil, errors.New("invalid token")
+    })
+    
+    // Add event handler
+    service.AddEvent("message", func(ctx context.Context, data socketiominiservice.SocketIOData[string]) {
+        // Handle message event
+        log.Printf("Received message from user %s: %s", data.Client.GetId(), string(data.Payload))
     })
     
     // Run the service

@@ -50,11 +50,20 @@ func main() {
     // Создание нового сервиса
     service := socketiominiservice.NewSocketIOService[string]()
     
-    // Добавление обработчика событий
-    service.AddEvent(func(ctx context.Context) (string, func(...any)) {
-        return "message", func(data ...any) {
-            // Обработка сообщения
+    // Установка функции валидации токена
+    service.TokenValidate(func(ctx context.Context, token string) (socketiominiservice.ClientInterface[string], error) {
+        // Валидация токена и возврат информации о пользователе
+        // Это упрощенный пример
+        if token == "Bearer valid-token" {
+            return &User{ID: "user1", Name: "John Doe"}, nil
         }
+        return nil, errors.New("invalid token")
+    })
+    
+    // Добавление обработчика событий
+    service.AddEvent("message", func(ctx context.Context, data socketiominiservice.SocketIOData[string]) {
+        // Обработка события сообщения
+        log.Printf("Получено сообщение от пользователя %s: %s", data.Client.GetId(), string(data.Payload))
     })
     
     // Запуск сервиса
